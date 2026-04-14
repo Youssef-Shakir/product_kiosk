@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="kiosk_page" name="Product Kiosk Page">
+        <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+                <title>بحث المنتجات</title>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+                <t t-call-assets="web.assets_frontend" t-css="true" t-js="true"/>
+            </head>
+            <body class="product-kiosk-body">
+                <div class="kiosk-container">
+                    <!-- Header -->
+                    <div class="kiosk-header">
+                        <a href="/web" class="btn-back" title="العودة إلى Odoo">
+                            <i class="fa fa-arrow-right"></i>
+                        </a>
+                        <h1><i class="fa fa-search"></i> بحث المنتجات</h1>
+                        <p>أدخل اسم أو باركود المنتج للبحث</p>
+                    </div>
+
+                    <!-- Search Section -->
+                    <div class="search-section">
+                        <div class="search-box">
+                            <input type="text" id="search_input" placeholder="اسم أو باركود المنتج..." autocomplete="off"/>
+                            <button type="button" id="search_btn" class="btn-search">
+                                <i class="fa fa-search"></i> بحث
+                            </button>
+                        </div>
+                        <div id="search_status" class="search-status"></div>
+                    </div>
+
+                    <!-- Product Form Section (hidden initially) -->
+                    <div id="product_form_section" class="product-form-section" style="display: none;">
+                        <div class="form-header">
+                            <h2 id="form_title">بيانات المنتج</h2>
+                        </div>
+
+                        <form id="product_form" class="product-form">
+                            <input type="hidden" id="product_id" value=""/>
+
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="product_name">اسم المنتج *</label>
+                                    <input type="text" id="product_name" required="required"/>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="product_barcode">الباركود</label>
+                                    <div class="input-with-btn">
+                                        <input type="text" id="product_barcode"/>
+                                        <button type="button" id="generate_barcode_btn" class="btn-secondary" title="توليد باركود">
+                                            <i class="fa fa-barcode"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="product_category">فئة نقاط البيع</label>
+                                    <select id="product_category">
+                                        <option value="">-- اختر الفئة --</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="product_price">سعر البيع</label>
+                                    <input type="number" id="product_price" step="0.01" min="0"/>
+                                </div>
+                                <div class="form-group">
+                                    <label for="product_cost">التكلفة</label>
+                                    <input type="number" id="product_cost" step="0.01" min="0"/>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="product_type">نوع المنتج</label>
+                                    <select id="product_type">
+                                        <option value="product" selected="selected">منتج قابل للتخزين</option>
+                                        <option value="consu">مستهلك</option>
+                                        <option value="service">خدمة</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="product_tracking">تتبع الصلاحية</label>
+                                    <div class="checkbox-wrapper">
+                                        <input type="checkbox" id="product_tracking" checked="checked"/>
+                                        <label for="product_tracking" class="checkbox-label">تفعيل تتبع تاريخ الصلاحية</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group full-width">
+                                    <label for="product_image">صورة المنتج</label>
+                                    <input type="file" id="product_image" accept="image/*"/>
+                                    <div id="image_preview" class="image-preview"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="submit" id="save_btn" class="btn-primary">
+                                    <i class="fa fa-save"></i> <span id="save_btn_text">حفظ</span>
+                                </button>
+                                <button type="button" id="clear_btn" class="btn-secondary">
+                                    <i class="fa fa-eraser"></i> مسح
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- Footer -->
+                    <div class="kiosk-footer">
+                        تطوير <a href="https://donialink.com" target="_blank">Youssef Shakir</a> | donialink.com
+                    </div>
+                </div>
+
+                <!-- Success Modal -->
+                <div id="success_modal" class="modal" style="display: none;">
+                    <div class="modal-content success">
+                        <div class="modal-icon">
+                            <i class="fa fa-check-circle"></i>
+                        </div>
+                        <h3 id="modal_title">نجاح</h3>
+                        <p id="modal_message">تمت العملية بنجاح</p>
+                        <button type="button" class="btn-primary modal-close">حسناً</button>
+                    </div>
+                </div>
+
+                <!-- Error Modal -->
+                <div id="error_modal" class="modal" style="display: none;">
+                    <div class="modal-content error">
+                        <div class="modal-icon">
+                            <i class="fa fa-times-circle"></i>
+                        </div>
+                        <h3>خطأ</h3>
+                        <p id="error_message">حدث خطأ</p>
+                        <button type="button" class="btn-primary modal-close">حسناً</button>
+                    </div>
+                </div>
+
+                <!-- Pass categories data to JS -->
+                <script type="text/javascript">
+                    var posCategories = <t t-raw="pos_categories"/>;
+                </script>
+            </body>
+        </html>
+    </template>
+</odoo>

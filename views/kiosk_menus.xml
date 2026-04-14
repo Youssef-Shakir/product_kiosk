@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <!-- Main App Menu -->
+    <menuitem id="menu_product_kiosk_root"
+              name="بحث المنتجات"
+              sequence="50"/>
+
+    <!-- Action to open kiosk in new tab -->
+    <record id="action_product_kiosk" model="ir.actions.act_url">
+        <field name="name">بحث المنتجات</field>
+        <field name="url">/product/kiosk</field>
+        <field name="target">self</field>
+    </record>
+
+    <!-- Submenu linking to the action -->
+    <menuitem id="menu_product_kiosk_open"
+              name="فتح الكيوسك"
+              parent="menu_product_kiosk_root"
+              action="action_product_kiosk"
+              sequence="10"/>
+</odoo>
