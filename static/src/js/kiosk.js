@@ -21,9 +21,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalMessage = document.getElementById('modal_message');
     const errorMessage = document.getElementById('error_message');
 
+    // Autocomplete dropdown
+    let autocompleteDropdown = document.getElementById('autocomplete_dropdown');
+    if (!autocompleteDropdown) {
+        autocompleteDropdown = document.createElement('div');
+        autocompleteDropdown.id = 'autocomplete_dropdown';
+        autocompleteDropdown.className = 'autocomplete-dropdown';
+        searchInput.parentNode.appendChild(autocompleteDropdown);
+    }
+
     // State
     let currentProductId = null;
     let currentImageBase64 = null;
+    let allProducts = []; // Cache for autocomplete
+    let searchTimeout = null;
 
     // Initialize categories dropdown
     function initCategories() {
@@ -60,9 +71,92 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Check if input looks like a barcode (only digits, length >= 4)
+    function isBarcode(value) {
+        return /^\d{4,}$/.test(value);
+    }
+
+    // Load all products for autocomplete cache
+    function loadProductsCache() {
+        jsonRpc('/product/kiosk/list', {})
+            .then(function(result) {
+                allProducts = result.products || [];
+            })
+            .catch(function(error) {
+                console.error('Error loading products cache:', error);
+                allProducts = [];
+            });
+    }
+
+    // Filter products for autocomplete
+    function filterProducts(query) {
+        if (!query || query.length < 2) return [];
+        const lowerQuery = query.toLowerCase();
+        return allProducts.filter(function(p) {
+            return p.name.toLowerCase().includes(lowerQuery) ||
+                   (p.barcode && p.barcode.includes(query));
+        }).slice(0, 8); // Limit to 8 results
+    }
+
+    // Show autocomplete dropdown
+    function showAutocomplete(matches) {
+        autocompleteDropdown.innerHTML = '';
+
+        if (matches.length === 0) {
+            autocompleteDropdown.style.display = 'none';
+            return;
+        }
+
+        matches.forEach(function(product) {
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.innerHTML = '<span class="product-name">' + product.name + '</span>' +
+                           (product.barcode ? '<span class="product-barcode">' + product.barcode + '</span>' : '');
+
+            item.addEventListener('click', function() {
+                searchInput.value = product.name;
+                autocompleteDropdown.style.display = 'none';
+                searchProduct();
+            });
+
+            autocompleteDropdown.appendChild(item);
+        });
+
+        autocompleteDropdown.style.display = 'block';
+    }
+
+    // Hide autocomplete
+    function hideAutocomplete() {
+        autocompleteDropdown.style.display = 'none';
+    }
+
+    // Handle search input for autocomplete
+    function handleSearchInput(e) {
+        const query = e.target.value.trim();
+
+        // Clear previous timeout
+        if (searchTimeout) {
+            clearTimeout(searchTimeout);
+        }
+
+        if (!query) {
+            hideAutocomplete();
+            searchStatus.textContent = '';
+            return;
+        }
+
+        // Delay autocomplete to avoid too many searches
+        searchTimeout = setTimeout(function() {
+            const matches = filterProducts(query);
+            showAutocomplete(matches);
+        }, 150);
+    }
+
     // Search product
     function searchProduct() {
         const query = searchInput.value.trim();
+        hideAutocomplete();
+
         if (!query) {
             searchStatus.textContent = 'الرجاء إدخال اسم أو باركود';
             searchStatus.className = 'search-status warning';
@@ -80,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     searchStatus.textContent = 'تم العثور على المنتج';
                     searchStatus.className = 'search-status success';
                 } else {
-                    // Product not found - show create form
+                    // Product not found - show create form with smart field placement
                     showCreateForm(query);
                     searchStatus.textContent = 'المنتج غير موجود - يمكنك إنشاؤه';
                     searchStatus.className = 'search-status warning';
@@ -128,19 +222,28 @@ document.addEventListener('DOMContentLoaded', function() {
         productFormSection.style.display = 'block';
     }
 
-    // Show create form for new product
+    // Show create form for new product - with smart barcode/name detection
     function showCreateForm(query) {
         currentProductId = null;
         currentImageBase64 = null;
 
         document.getElementById('product_id').value = '';
-        document.getElementById('product_name').value = query;
-        document.getElementById('product_barcode').value = '';
         document.getElementById('product_price').value = '';
         document.getElementById('product_cost').value = '';
         categorySelect.value = '';
         imagePreview.innerHTML = '';
         productImage.value = '';
+
+        // Smart detection: if query looks like barcode, put it in barcode field
+        if (isBarcode(query)) {
+            document.getElementById('product_name').value = '';
+            document.getElementById('product_barcode').value = query;
+            searchStatus.textContent = 'باركود جديد - أدخل اسم المنتج';
+        } else {
+            document.getElementById('product_name').value = query;
+            document.getElementById('product_barcode').value = '';
+            searchStatus.textContent = 'منتج جديد - يمكنك إضافة الباركود';
+        }
 
         // Set defaults for new product
         document.getElementById('product_type').value = 'product'; // storable
@@ -161,6 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.value = '';
         searchStatus.textContent = '';
         searchStatus.className = 'search-status';
+        hideAutocomplete();
 
         // Ensure defaults are set
         document.getElementById('product_type').value = 'product';
@@ -222,6 +326,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.success) {
                     showSuccess(result.message);
                     clearForm();
+                    // Refresh products cache
+                    loadProductsCache();
                 } else {
                     showError(result.message);
                 }
@@ -252,12 +358,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Event listeners
     searchBtn.addEventListener('click', searchProduct);
+    searchInput.addEventListener('input', handleSearchInput);
     searchInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
+            hideAutocomplete();
             searchProduct();
         }
     });
+
+    // Hide autocomplete when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!searchInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
+            hideAutocomplete();
+        }
+    });
+
     clearBtn.addEventListener('click', clearForm);
     generateBarcodeBtn.addEventListener('click', generateBarcode);
     productImage.addEventListener('change', handleImageUpload);
@@ -279,4 +395,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize
     initCategories();
+    loadProductsCache();
 });

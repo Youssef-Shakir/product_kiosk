@@ -51,6 +51,20 @@ class ProductKioskController(http.Controller):
 
         return {'found': False}
 
+    @http.route('/product/kiosk/list', type='json', auth='user', methods=['POST'])
+    def list_products(self):
+        """Get all products for autocomplete (lightweight, no images)."""
+        Product = request.env['product.product'].sudo()
+        products = Product.search([('available_in_pos', '=', True)], limit=1000)
+
+        return {
+            'products': [{
+                'id': p.id,
+                'name': p.name,
+                'barcode': p.barcode or '',
+            } for p in products]
+        }
+
     @http.route('/product/kiosk/save', type='json', auth='user', methods=['POST'])
     def save_product(self, product_id, data):
         """Create or update a product."""

@@ -106,6 +106,7 @@
 .search-box {
     display: flex;
     gap: 8px;
+    position: relative;
 }
 
 .search-box input {
@@ -168,6 +169,52 @@
 .search-status.error {
     background: #fee2e2;
     color: #991b1b;
+}
+
+/* Autocomplete Dropdown */
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 100;
+    margin-top: 4px;
+    display: none;
+}
+
+.autocomplete-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.15s;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-item:hover {
+    background: var(--bg-color);
+}
+
+.autocomplete-item .product-name {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.autocomplete-item .product-barcode {
+    font-size: 12px;
+    color: var(--text-muted);
+    direction: ltr;
 }
 
 /* Product Form Section */
