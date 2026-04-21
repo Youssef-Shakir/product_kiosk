@@ -165,9 +165,7 @@
                 </div>
 
                 <!-- Pass categories data to JS -->
-                <script type="text/javascript">
-                    var posCategories = <t t-out="pos_categories"/>;
-                </script>
+                <div id="kiosk-data" t-att-data-categories="pos_categories" style="display:none;"></div>
             </body>
         </html>
     </template>

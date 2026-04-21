@@ -33,18 +33,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // State
     let currentProductId = null;
     let currentImageBase64 = null;
-    let allProducts = []; // Cache for autocomplete
     let searchTimeout = null;
 
-    // Initialize categories dropdown
+    // Initialize categories from data attribute (avoids HTML-escaping issues)
     function initCategories() {
-        if (typeof posCategories !== 'undefined' && posCategories.length > 0) {
-            posCategories.forEach(function(cat) {
+        const kioskData = document.getElementById('kiosk-data');
+        if (!kioskData) return;
+        try {
+            const categories = JSON.parse(kioskData.dataset.categories || '[]');
+            categories.forEach(function(cat) {
                 const option = document.createElement('option');
                 option.value = cat.id;
                 option.textContent = cat.name;
                 categorySelect.appendChild(option);
             });
+        } catch(e) {
+            console.error('Failed to parse categories:', e);
         }
     }
 
@@ -76,26 +80,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return /^\d{4,}$/.test(value);
     }
 
-    // Load all products for autocomplete cache
-    function loadProductsCache() {
-        jsonRpc('/product/kiosk/list', {})
+    // Server-side autocomplete search (handles 5000+ products efficiently)
+    function fetchAutocomplete(query) {
+        jsonRpc('/product/kiosk/list', { query: query })
             .then(function(result) {
-                allProducts = result.products || [];
+                showAutocomplete(result.products || []);
             })
-            .catch(function(error) {
-                console.error('Error loading products cache:', error);
-                allProducts = [];
+            .catch(function() {
+                hideAutocomplete();
             });
-    }
-
-    // Filter products for autocomplete
-    function filterProducts(query) {
-        if (!query || query.length < 2) return [];
-        const lowerQuery = query.toLowerCase();
-        return allProducts.filter(function(p) {
-            return p.name.toLowerCase().includes(lowerQuery) ||
-                   (p.barcode && p.barcode.includes(query));
-        }).slice(0, 8); // Limit to 8 results
     }
 
     // Show autocomplete dropdown
@@ -134,22 +127,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function handleSearchInput(e) {
         const query = e.target.value.trim();
 
-        // Clear previous timeout
         if (searchTimeout) {
             clearTimeout(searchTimeout);
         }
 
-        if (!query) {
+        if (!query || query.length < 2) {
             hideAutocomplete();
             searchStatus.textContent = '';
             return;
         }
 
-        // Delay autocomplete to avoid too many searches
         searchTimeout = setTimeout(function() {
-            const matches = filterProducts(query);
-            showAutocomplete(matches);
-        }, 150);
+            fetchAutocomplete(query);
+        }, 300);
     }
 
     // Search product
@@ -169,12 +159,10 @@ document.addEventListener('DOMContentLoaded', function() {
         jsonRpc('/product/kiosk/search', { query: query })
             .then(function(result) {
                 if (result.found) {
-                    // Product found - show details
                     displayProduct(result.product);
                     searchStatus.textContent = 'تم العثور على المنتج';
                     searchStatus.className = 'search-status success';
                 } else {
-                    // Product not found - show create form with smart field placement
                     showCreateForm(query);
                     searchStatus.textContent = 'المنتج غير موجود - يمكنك إنشاؤه';
                     searchStatus.className = 'search-status warning';
@@ -197,20 +185,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('product_price').value = product.lst_price || 0;
         document.getElementById('product_cost').value = product.standard_price || 0;
 
-        // Set category
         if (product.pos_categ_ids && product.pos_categ_ids.length > 0) {
             categorySelect.value = product.pos_categ_ids[0];
         } else {
             categorySelect.value = '';
         }
 
-        // Set product type
         document.getElementById('product_type').value = product.detailed_type || 'product';
-
-        // Set tracking
         document.getElementById('product_tracking').checked = (product.tracking === 'lot');
 
-        // Show image
         if (product.image) {
             imagePreview.innerHTML = '<img src="data:image/png;base64,' + product.image + '" alt="Product Image"/>';
         } else {
@@ -222,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         productFormSection.style.display = 'block';
     }
 
-    // Show create form for new product - with smart barcode/name detection
+    // Show create form for new product
     function showCreateForm(query) {
         currentProductId = null;
         currentImageBase64 = null;
@@ -234,7 +217,6 @@ document.addEventListener('DOMContentLoaded', function() {
         imagePreview.innerHTML = '';
         productImage.value = '';
 
-        // Smart detection: if query looks like barcode, put it in barcode field
         if (isBarcode(query)) {
             document.getElementById('product_name').value = '';
             document.getElementById('product_barcode').value = query;
@@ -245,9 +227,8 @@ document.addEventListener('DOMContentLoaded', function() {
             searchStatus.textContent = 'منتج جديد - يمكنك إضافة الباركود';
         }
 
-        // Set defaults for new product
-        document.getElementById('product_type').value = 'product'; // storable
-        document.getElementById('product_tracking').checked = true; // track expiry by default
+        document.getElementById('product_type').value = 'product';
+        document.getElementById('product_tracking').checked = true;
 
         formTitle.textContent = 'إنشاء منتج جديد';
         saveBtnText.textContent = 'إنشاء';
@@ -266,7 +247,6 @@ document.addEventListener('DOMContentLoaded', function() {
         searchStatus.className = 'search-status';
         hideAutocomplete();
 
-        // Ensure defaults are set
         document.getElementById('product_type').value = 'product';
         document.getElementById('product_tracking').checked = true;
     }
@@ -326,8 +306,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (result.success) {
                     showSuccess(result.message);
                     clearForm();
-                    // Refresh products cache
-                    loadProductsCache();
                 } else {
                     showError(result.message);
                 }
@@ -367,7 +345,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Hide autocomplete when clicking outside
     document.addEventListener('click', function(e) {
         if (!searchInput.contains(e.target) && !autocompleteDropdown.contains(e.target)) {
             hideAutocomplete();
@@ -379,12 +356,10 @@ document.addEventListener('DOMContentLoaded', function() {
     productImage.addEventListener('change', handleImageUpload);
     productForm.addEventListener('submit', saveProduct);
 
-    // Modal close buttons
     document.querySelectorAll('.modal-close').forEach(function(btn) {
         btn.addEventListener('click', closeModals);
     });
 
-    // Close modal on backdrop click
     document.querySelectorAll('.modal').forEach(function(modal) {
         modal.addEventListener('click', function(e) {
             if (e.target === modal) {
@@ -393,7 +368,5 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Initialize
     initCategories();
-    loadProductsCache();
 });

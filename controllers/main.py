@@ -52,10 +52,13 @@ class ProductKioskController(http.Controller):
         return {'found': False}
 
     @http.route('/product/kiosk/list', type='json', auth='user', methods=['POST'])
-    def list_products(self):
-        """Get all products for autocomplete (lightweight, no images)."""
+    def list_products(self, query=''):
+        """Get products for autocomplete with server-side filtering."""
         Product = request.env['product.product'].sudo()
-        products = Product.search([], limit=1000)
+        domain = []
+        if query:
+            domain = ['|', ('name', 'ilike', query), ('barcode', 'like', query)]
+        products = Product.search(domain, limit=10)
 
         return {
             'products': [{
