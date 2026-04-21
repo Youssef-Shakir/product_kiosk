@@ -18,11 +18,7 @@
         'views/kiosk_menus.xml',
         'views/kiosk_templates.xml',
     ],
-    'assets': {
-        'web.assets_frontend': [
-            'product_kiosk/static/src/js/kiosk.js',
-        ],
-    },
+    'assets': {},
     'installable': True,
     'application': True,
 }
