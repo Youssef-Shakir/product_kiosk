@@ -166,7 +166,7 @@
 
                 <!-- Pass categories data to JS -->
                 <script type="text/javascript">
-                    var posCategories = <t t-raw="pos_categories"/>;
+                    var posCategories = <t t-out="pos_categories"/>;
                 </script>
             </body>
         </html>

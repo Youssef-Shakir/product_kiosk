@@ -55,7 +55,7 @@ class ProductKioskController(http.Controller):
     def list_products(self):
         """Get all products for autocomplete (lightweight, no images)."""
         Product = request.env['product.product'].sudo()
-        products = Product.search([('available_in_pos', '=', True)], limit=1000)
+        products = Product.search([], limit=1000)
 
         return {
             'products': [{
