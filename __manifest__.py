@@ -20,7 +20,6 @@
     ],
     'assets': {
         'web.assets_frontend': [
-            'product_kiosk/static/src/css/kiosk.css',
             'product_kiosk/static/src/js/kiosk.js',
         ],
     },
